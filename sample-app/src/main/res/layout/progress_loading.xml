@@ -9,12 +9,16 @@
     android:orientation="vertical"
     android:padding="@dimen/_12sdp">
 
-    <com.deepan.pieprogress.PieProgress
+    <ProgressBar
         android:id="@+id/pieProgress"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="@dimen/_35sdp"
         android:layout_height="@dimen/_35sdp"
-        app:progressColor="#000000"
-        app:strokeWidth="@dimen/_2sdp" />
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="@android:color/black" />
+
 
     <TextView
         android:id="@+id/messageLabel"

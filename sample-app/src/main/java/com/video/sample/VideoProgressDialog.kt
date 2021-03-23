@@ -23,6 +23,6 @@ class VideoProgressDialog(private var ctx: Context, private var message: String)
 
 
     fun setProgress(progress: Float) {
-        pieProgress.setProgress(progress)
+        pieProgress.progress = progress.toInt()
     }
 }

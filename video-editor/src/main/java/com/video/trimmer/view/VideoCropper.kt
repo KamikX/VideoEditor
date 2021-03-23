@@ -1,11 +1,11 @@
 package com.video.trimmer.view
 
+import android.app.Activity
 import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import android.os.Environment
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
@@ -16,7 +16,6 @@ import com.video.trimmer.utils.BackgroundExecutor
 import com.video.trimmer.utils.RealPathUtil
 import com.video.trimmer.utils.VideoOptions
 import kotlinx.android.synthetic.main.view_cropper.view.*
-import org.jetbrains.anko.runOnUiThread
 import java.io.File
 import java.util.*
 import kotlin.math.abs
@@ -33,8 +32,8 @@ class VideoCropper @JvmOverloads constructor(context: Context, attrs: AttributeS
     private var destinationPath: String
         get() {
             if (mFinalPath == null) {
-                val folder = Environment.getExternalStorageDirectory()
-                mFinalPath = folder.path + File.separator
+                val folder = context.getExternalFilesDir(null)
+                mFinalPath = folder?.path + File.separator
             }
             return mFinalPath ?: ""
         }
@@ -97,8 +96,8 @@ class VideoCropper @JvmOverloads constructor(context: Context, attrs: AttributeS
         loadFrame(0)
         val mediaMetadataRetriever = MediaMetadataRetriever()
         mediaMetadataRetriever.setDataSource(context, mSrc)
-        videoWidth = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt()
-        videoHeight = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt()
+        videoWidth = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 0
+        videoHeight = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 0
         return this
     }
 
@@ -122,7 +121,7 @@ class VideoCropper @JvmOverloads constructor(context: Context, attrs: AttributeS
             for (i in 0..numTracks) {
                 val format = extractor.getTrackFormat(i)
                 val mime = format.getString(MediaFormat.KEY_MIME)
-                if (mime.startsWith("video/")) {
+                if (mime!!.startsWith("video/")) {
                     if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
                         frameRate = format.getInteger(MediaFormat.KEY_FRAME_RATE)
                     }
@@ -135,9 +134,9 @@ class VideoCropper @JvmOverloads constructor(context: Context, attrs: AttributeS
         }
         val mediaMetadataRetriever = MediaMetadataRetriever()
         mediaMetadataRetriever.setDataSource(context, mSrc)
-        val duration = java.lang.Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))
-        val frameCount = duration / 1000 * frameRate
-        VideoOptions(context).cropVideo(width, height, x, y, file.path, outPutPath, outputFileUri, mOnCropVideoListener, frameCount.toInt())
+        val videoDuration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt() ?: 0
+        val frameCount = videoDuration / 1000 * frameRate
+        VideoOptions().cropVideo(width, height, x, y, file.path, outPutPath, outputFileUri, mOnCropVideoListener, frameCount)
     }
 
     fun onCancelClicked() {
@@ -169,12 +168,13 @@ class VideoCropper @JvmOverloads constructor(context: Context, attrs: AttributeS
                 try {
                     val mediaMetadataRetriever = MediaMetadataRetriever()
                     mediaMetadataRetriever.setDataSource(context, mSrc)
-                    val videoLengthInMs = (Integer.parseInt(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) * 1000).toLong()
+                    val videoDuration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0
+                    val videoLengthInMs = (videoDuration * 1000)
                     val seekDuration = (videoLengthInMs * progress) / 1000
                     val bitmap = mediaMetadataRetriever.getFrameAtTime(seekDuration * 10, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                     if (bitmap != null) {
                         try {
-                            context.runOnUiThread {
+                            (context as? Activity)?.runOnUiThread {
                                 cropFrame.setImageBitmap(bitmap)
                             }
                         } catch (e: Exception) {

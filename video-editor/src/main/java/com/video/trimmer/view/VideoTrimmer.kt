@@ -9,6 +9,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Environment
 import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.util.AttributeSet
 import android.util.Log
@@ -53,8 +54,8 @@ class VideoTrimmer @JvmOverloads constructor(context: Context, attrs: AttributeS
     private var destinationPath: String
         get() {
             if (mFinalPath == null) {
-                val folder = Environment.getExternalStorageDirectory()
-                mFinalPath = folder.path + File.separator
+                val folder = context.getExternalFilesDir(null)
+                mFinalPath = folder?.path + File.separator
             }
             return mFinalPath ?: ""
         }
@@ -169,13 +170,12 @@ class VideoTrimmer @JvmOverloads constructor(context: Context, attrs: AttributeS
     }
 
     fun onSaveClicked() {
-        mOnTrimVideoListener?.onTrimStarted()
         icon_video_play.visibility = View.VISIBLE
         video_loader.pause()
 
         val mediaMetadataRetriever = MediaMetadataRetriever()
         mediaMetadataRetriever.setDataSource(context, mSrc)
-        val metaDataKeyDuration = java.lang.Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))
+        val metaDataKeyDuration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
 
         val file = File(mSrc.path ?: "")
 
@@ -199,7 +199,7 @@ class VideoTrimmer @JvmOverloads constructor(context: Context, attrs: AttributeS
             for (i in 0..numTracks) {
                 val format = extractor.getTrackFormat(i)
                 val mime = format.getString(MediaFormat.KEY_MIME)
-                if (mime.startsWith("video/")) {
+                if (mime!!.startsWith("video/")) {
                     if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
                         frameRate = format.getInteger(MediaFormat.KEY_FRAME_RATE)
                     }
@@ -210,10 +210,10 @@ class VideoTrimmer @JvmOverloads constructor(context: Context, attrs: AttributeS
         } finally {
             extractor.release()
         }
-        val duration = java.lang.Long.parseLong(mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))
+        val videoDuration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
         Log.e("FRAME RATE", frameRate.toString())
-        Log.e("FRAME COUNT", (duration / 1000 * frameRate).toString())
-        VideoOptions(context).trimVideo(TrimVideoUtils.stringForTime(mStartPosition), TrimVideoUtils.stringForTime(mEndPosition), file.path, outPutPath, outputFileUri, mOnTrimVideoListener)
+        Log.e("FRAME COUNT", (videoDuration / 1000 * frameRate).toString())
+        VideoOptions().trimVideo(TrimVideoUtils.stringForTime(mStartPosition), TrimVideoUtils.stringForTime(mEndPosition), file.path, outPutPath, outputFileUri, mOnTrimVideoListener)
     }
 
     private fun onClickVideoPlayPause() {
@@ -392,7 +392,7 @@ class VideoTrimmer @JvmOverloads constructor(context: Context, attrs: AttributeS
         return this
     }
 
-    private class MessageHandler internal constructor(view: VideoTrimmer) : Handler() {
+    private class MessageHandler(view: VideoTrimmer) : Handler(Looper.getMainLooper()) {
         private val mView: WeakReference<VideoTrimmer> = WeakReference(view)
         override fun handleMessage(msg: Message) {
             val view = mView.get()
